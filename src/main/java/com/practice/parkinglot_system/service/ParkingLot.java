@@ -6,8 +6,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.stereotype.Service;
+
 import com.practice.parkinglot_system.entity.Vehicle;
 
+@Service
 public class ParkingLot {
     // private Map<String, LocalDateTime> parkingRecords = new HashMap<>();
     private Map<String, Vehicle> parkingRecords = new HashMap<>();
