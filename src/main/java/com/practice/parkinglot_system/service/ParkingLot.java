@@ -56,4 +56,17 @@ public class ParkingLot {
         System.out.printf("車牌 %s 停車費用為 %d 元\n", plateNumber, parkingFee);
         parkingRecords.remove(vehicle.getPlateNumber());
     }
+
+    // 單純計算費用，不把車輛從 parkingRecords 中移除
+    public int getFee(String plateNumber) {
+        Vehicle vehicle = parkingRecords.get(plateNumber);
+        
+        // 防呆：如果查無此車，回傳 -1 做為錯誤代碼
+        if (vehicle == null) {
+            return -1; 
+        }
+
+        int hours = 2; // 目前為了測試方便，我們先寫死模擬停了 2 小時
+        return vehicle.calculateFee(hours); // 這裡依然完美利用了多型！
+    }
 }
