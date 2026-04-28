@@ -19,6 +19,10 @@ public class VehicleEntity {
     @Column(nullable = false)
     private String vehicleType; // CAR / MOTORCYCLE
 
+    @ManyToOne
+    @JoinColumn(name = "user_id") // 在 vehicles 表裡會多出一個 user_id 欄位
+    private UserEntity owner;
+
     // 一台車可以有多筆停車紀錄
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL)
     private List<ParkingRecord> records;
