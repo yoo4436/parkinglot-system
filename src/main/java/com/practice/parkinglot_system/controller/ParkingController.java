@@ -56,9 +56,7 @@ public class ParkingController {
     }
 
     @PostMapping("/checkOut")
-    public String checkOutVehicle(@RequestParam String plateNumber) {
-        Vehicle vehicle = null;
-        
+    public String checkOutVehicle(@RequestParam String plateNumber) {        
         parkingLot.checkOut(plateNumber);
         return "車牌 " + plateNumber + " 已離場";
     }

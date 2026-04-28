@@ -1,5 +1,6 @@
 package com.practice.parkinglot_system.service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -9,35 +10,59 @@ import com.practice.parkinglot_system.entity.Car;
 import com.practice.parkinglot_system.entity.Motorcycle;
 import com.practice.parkinglot_system.entity.ParkingRecord;
 import com.practice.parkinglot_system.entity.Vehicle;
+import com.practice.parkinglot_system.entity.VehicleEntity;
 import com.practice.parkinglot_system.repository.ParkingRecordRepository;
+import com.practice.parkinglot_system.repository.VehicleRepository;
 
 @Service
 public class ParkingLot {
-    
-    // 1：移除 HashMap，改為宣告我們寫好的 Repository
-    private final ParkingRecordRepository repository;
+    private final ParkingRecordRepository recordRepo;
+    private final VehicleRepository vehicleRepo;
 
-    // 透過建構子，讓 Spring Boot 自動幫我們注入資料庫操作工具
-    public ParkingLot(ParkingRecordRepository repository) {
-        this.repository = repository;
+    public ParkingLot(ParkingRecordRepository recordRepo, VehicleRepository vehicleRepo) {
+        this.recordRepo = recordRepo;
+        this.vehicleRepo = vehicleRepo;
     }
 
     public void checkIn(Vehicle vehicle) {
-        // 2：判斷前端傳來的是汽車還是機車，並轉換成要存入資料庫的字串
-        String type = (vehicle instanceof Car) ? "CAR" : "MOTORCYCLE";
+        // 1. 處理車輛主檔：如果資料庫還沒有這台車，就存入
+        VehicleEntity vehicleEntity = vehicleRepo.findById(vehicle.getPlateNumber())
+            .orElseGet(() -> {
+                String type = (vehicle instanceof Car) ? "CAR" : "MOTORCYCLE";
+                return vehicleRepo.save(new VehicleEntity(vehicle.getPlateNumber(), type));
+            });
+
+        // 2. 建立停車紀錄
+        ParkingRecord record = new ParkingRecord(vehicleEntity);
+        recordRepo.save(record);
+    }
+
+    public int getFee(String plateNumber) {
+        // 透過新方法查詢「停車中」的紀錄
+        Optional<ParkingRecord> recordOpt = recordRepo.findByVehicle_PlateNumberAndStatus(plateNumber, "PARKING");
         
-        // 建立一筆新的資料庫實體 (建構子會自動填入當下時間與 PARKING 狀態)
-        ParkingRecord record = new ParkingRecord(vehicle.getPlateNumber(), type);
-        
-        // 呼叫 JPA 存入資料庫！ (取代原本的 hashMap.put)
-        repository.save(record);
-        
-        System.out.printf("車牌 %s (%s) 已進場並寫入資料庫\n", vehicle.getPlateNumber(), type);
+        if (recordOpt.isEmpty()) return -1;
+
+        ParkingRecord record = recordOpt.get();
+        VehicleEntity vEntity = record.getVehicle(); // 從紀錄拿回車輛資訊
+
+        LocalDateTime entryTime = record.getEntryTime();
+        LocalDateTime now = LocalDateTime.now();
+        long minutes = Duration.between(entryTime, now).toMinutes();
+
+        int halfHour = (int) Math.ceil(minutes / 30.0);
+        int hours = (int) Math.ceil(minutes / 60.0);
+
+        if (hours == 0) hours = 1; // 不足一小時按一小時計費
+
+        // 具現化多型邏輯
+        Vehicle v = vEntity.getVehicleType().equals("CAR") ? new Car(plateNumber) : new Motorcycle(plateNumber);
+        return v.calculateFee(hours); 
     }
 
     public LocalDateTime getEntryTime(String plateNumber) {
         // 3：使用 Optional 來接收查詢結果，這是 Java 8 後防範 NullPointerException 的好習慣
-        Optional<ParkingRecord> recordOpt = repository.findByPlateNumberAndStatus(plateNumber, "PARKING");
+        Optional<ParkingRecord> recordOpt = recordRepo.findByVehicle_PlateNumberAndStatus(plateNumber, "PARKING");
         
         if (recordOpt.isEmpty()) {
             System.out.println("查無資料");
@@ -50,7 +75,7 @@ public class ParkingLot {
     }
 
     public void checkOut(String plateNumber) {
-        Optional<ParkingRecord> recordOpt = repository.findByPlateNumberAndStatus(plateNumber, "PARKING");
+        Optional<ParkingRecord> recordOpt = recordRepo.findByVehicle_PlateNumberAndStatus(plateNumber, "PARKING");
 
         if (recordOpt.isEmpty()) {
             System.out.println("查無資料");
@@ -70,29 +95,6 @@ public class ParkingLot {
         record.setStatus("COMPLETED");
         
         // 將更新後的紀錄存回資料庫
-        repository.save(record);
-    }
-
-    public int getFee(String plateNumber) {
-        Optional<ParkingRecord> recordOpt = repository.findByPlateNumberAndStatus(plateNumber, "PARKING");
-        
-        if (recordOpt.isEmpty()) {
-            return -1; 
-        }
-
-        ParkingRecord record = recordOpt.get();
-        int hours = 2; // 目前為了測試方便，我們先寫死模擬停了 2 小時
-
-        // 5：最精彩的地方！我們把資料庫裡的字串拿出來，重新「具現化」成物件
-        // 這樣我們就能完美繼續使用你在 Vehicle, Car, Motorcycle 寫好的「多型計費邏輯」！
-        Vehicle vehicle;
-        if ("CAR".equals(record.getVehicleType())) {
-            vehicle = new Car(plateNumber);
-        } else {
-            vehicle = new Motorcycle(plateNumber);
-        }
-
-        // 呼叫物件自己的計費方法
-        return vehicle.calculateFee(hours); 
+        recordRepo.save(record);
     }
 }
