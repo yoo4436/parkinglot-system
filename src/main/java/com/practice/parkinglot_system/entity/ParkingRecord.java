@@ -36,7 +36,7 @@ public class ParkingRecord {
     public ParkingRecord(String plateNumber, String vehicleType) {
         this.plateNumber = plateNumber;
         this.vehicleType = vehicleType;
-        this.entryTime = LocalDateTime.now();
+        this.entryTime = LocalDateTime.now().withNano(0);
         this.status = "PARKING";
     }
 }

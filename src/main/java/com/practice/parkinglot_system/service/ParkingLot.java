@@ -65,7 +65,7 @@ public class ParkingLot {
         System.out.printf("車牌 %s 停車費用為 %d 元，已結帳離場\n", plateNumber, parkingFee);
         
         // 4：結帳時「不刪除」資料，而是更新出場時間、費用與狀態
-        record.setExitTime(LocalDateTime.now());
+        record.setExitTime(LocalDateTime.now().withNano(0));
         record.setFee(parkingFee);
         record.setStatus("COMPLETED");
         
